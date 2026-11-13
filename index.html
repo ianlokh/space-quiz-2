@@ -114,6 +114,14 @@
     h2 { margin: 18px 0 8px; font-size: clamp(22px, 4vw, 26px); line-height: 1.25; letter-spacing: -.04em; }
     .hint { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .answers { display: grid; gap: 9px; }
+    .mission-options { display: grid; gap: 10px; margin: 20px 0; border: 0; padding: 0; }
+    .mission-options legend { margin-bottom: 10px; }
+    .mission-option { display: flex; align-items: center; gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; }
+    .mission-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .mission-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+    .mission-option strong, .mission-option small { display: block; }
+    .mission-option strong { font-size: 13px; }
+    .mission-option small { margin-top: 3px; color: var(--muted); font-size: 12px; }
     .answer { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--text); text-align: left; font-size: 13px; font-weight: 650; cursor: pointer; transition: border-color .2s, background .2s, transform .2s; }
     .answer:not(:disabled):hover { border-color: var(--accent); background: var(--accent-soft); transform: translateX(3px); }
     .answer:disabled { cursor: default; opacity: 1; }
@@ -158,11 +166,11 @@
     <section class="hero" aria-labelledby="page-title">
       <div class="eyebrow">A little adventure for curious minds</div>
       <h1 id="page-title"><span class="display-status" aria-hidden="true"><span>MISSION CONTROL / 01</span><span class="display-online">SYSTEMS ONLINE</span></span>Ready for liftoff? <span aria-hidden="true">🚀</span></h1>
-      <p>Ten questions. One universe. Let's see how far you go. <span aria-hidden="true">✦</span></p>
+      <p id="hero-description">Choose a short or full mission to begin. <span aria-hidden="true">✦</span></p>
     </section>
 
     <section class="card" aria-label="Space exploration quiz">
-      <div class="card-top">
+      <div class="card-top" id="mission-status" hidden>
         <div class="status">
           <div class="status-label" id="question-count">Question <strong>01</strong> / 10</div>
           <div class="score" id="score"><span aria-hidden="true">✦</span> 0 points</div>
@@ -170,7 +178,24 @@
         <div class="track" id="progress" role="progressbar" aria-label="Quiz progress" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><div class="bar" id="bar"></div></div>
       </div>
       <div class="card-body">
-        <div id="quiz">
+        <div id="setup">
+          <div class="question-kicker"><span class="planet" aria-hidden="true">🧭</span> Choose your mission</div>
+          <h2>How much time do you have?</h2>
+          <p class="hint">Pick a mission length. You can explore all ten questions or take a quick trip through five.</p>
+          <fieldset class="mission-options">
+            <legend class="status-label">Mission length</legend>
+            <label class="mission-option">
+              <input type="radio" name="mission-length" value="10" checked>
+              <span><strong>Full mission · 10 questions</strong><small>Explore the whole question bank</small></span>
+            </label>
+            <label class="mission-option">
+              <input type="radio" name="mission-length" value="5">
+              <span><strong>Short mission · 5 questions</strong><small>A quick adventure with five different questions</small></span>
+            </label>
+          </fieldset>
+          <button class="next" id="start" type="button">Start mission <span aria-hidden="true">→</span></button>
+        </div>
+        <div id="quiz" hidden>
           <div class="question-kicker"><span class="planet" id="question-icon" aria-hidden="true">🪐</span> <span id="category">The solar system</span></div>
           <h2 id="question"></h2>
           <p class="hint">Choose the answer you think is right.</p>
@@ -184,7 +209,7 @@
           <h2 id="result-title">You're a star!</h2>
           <div class="result-score" id="result-score"></div>
           <p id="result-message"></p>
-          <button class="next" id="restart" type="button">Explore again <span aria-hidden="true">↗</span></button>
+          <button class="next" id="restart" type="button">Choose another mission <span aria-hidden="true">↗</span></button>
         </div>
       </div>
     </section>
@@ -209,17 +234,19 @@
     let current = 0;
     let points = 0;
     let answered = false;
+    let missionQuestions = [];
 
     function renderQuestion() {
-      const item = questions[current];
+      const item = missionQuestions[current];
       answered = false;
-      $("question-count").innerHTML = `Question <strong>${String(current + 1).padStart(2, "0")}</strong> / ${questions.length}`;
+      $("question-count").innerHTML = `Question <strong>${String(current + 1).padStart(2, "0")}</strong> / ${missionQuestions.length}`;
       $("category").textContent = item.category;
       $("question-icon").textContent = item.icon;
       $("question").textContent = item.question;
       $("score").innerHTML = `<span aria-hidden="true">✦</span> ${points} ${points === 1 ? "point" : "points"}`;
+      $("progress").setAttribute("aria-valuemax", missionQuestions.length);
       $("progress").setAttribute("aria-valuenow", current);
-      $("bar").style.width = `${current / questions.length * 100}%`;
+      $("bar").style.width = `${current / missionQuestions.length * 100}%`;
       $("feedback").hidden = true;
       $("next").hidden = true;
       $("answers").replaceChildren();
@@ -242,7 +269,7 @@
     function selectAnswer(index) {
       if (answered) return;
       answered = true;
-      const item = questions[current];
+      const item = missionQuestions[current];
       const isCorrect = index === item.correct;
       if (isCorrect) points++;
       Array.from($("answers").children).forEach((button, i) => {
@@ -258,7 +285,7 @@
       });
       $("score").innerHTML = `<span aria-hidden="true">✦</span> ${points} ${points === 1 ? "point" : "points"}`;
       $("progress").setAttribute("aria-valuenow", current + 1);
-      $("bar").style.width = `${(current + 1) / questions.length * 100}%`;
+      $("bar").style.width = `${(current + 1) / missionQuestions.length * 100}%`;
       const feedback = $("feedback");
       feedback.className = `feedback ${isCorrect ? "good" : "bad"}`;
       feedback.replaceChildren();
@@ -266,13 +293,34 @@
       heading.textContent = isCorrect ? "✨ Stellar! You got it." : `💫 Not quite! The answer is ${item.answers[item.correct]}.`;
       feedback.append(heading, document.createTextNode(item.fact));
       feedback.hidden = false;
-      $("next").innerHTML = current === questions.length - 1 ? 'See your results <span aria-hidden="true">→</span>' : 'Next question <span aria-hidden="true">→</span>';
+      $("next").innerHTML = current === missionQuestions.length - 1 ? 'See your results <span aria-hidden="true">→</span>' : 'Next question <span aria-hidden="true">→</span>';
       $("next").hidden = false;
       $("next").focus();
     }
 
+    function startMission() {
+      const length = Number(document.querySelector('input[name="mission-length"]:checked').value);
+      const availableQuestions = [...questions];
+      if (length < questions.length) {
+        for (let index = availableQuestions.length - 1; index > 0; index--) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [availableQuestions[index], availableQuestions[swapIndex]] = [availableQuestions[swapIndex], availableQuestions[index]];
+        }
+      }
+      missionQuestions = availableQuestions.slice(0, length);
+      current = 0;
+      points = 0;
+      $("setup").hidden = true;
+      $("quiz").hidden = false;
+      $("mission-status").hidden = false;
+      $("hero-description").firstChild.textContent = `${length} questions. One universe. Let's see how far you go. `;
+      renderQuestion();
+      $("question").focus();
+    }
+
+    $("start").addEventListener("click", startMission);
     $("next").addEventListener("click", () => {
-      if (current < questions.length - 1) {
+      if (current < missionQuestions.length - 1) {
         current++;
         renderQuestion();
         $("question").focus();
@@ -280,9 +328,9 @@
         $("quiz").hidden = true;
         $("result").hidden = false;
         $("question-count").innerHTML = "Mission <strong>complete</strong>";
-        $("result-score").textContent = `${points} / ${questions.length}`;
-        $("result-title").textContent = points === 10 ? "A perfect mission!" : points >= 7 ? "You're a space superstar!" : "Your adventure has just begun!";
-        $("result-message").textContent = points >= 7 ? "What a journey! Your cosmic knowledge is out of this world." : "Every great explorer starts somewhere. Keep looking up and try another mission!";
+        $("result-score").textContent = `${points} / ${missionQuestions.length}`;
+        $("result-title").textContent = points === missionQuestions.length ? "A perfect mission!" : points >= missionQuestions.length * 0.7 ? "You're a space superstar!" : "Your adventure has just begun!";
+        $("result-message").textContent = points >= missionQuestions.length * 0.7 ? "What a journey! Your cosmic knowledge is out of this world." : "Every great explorer starts somewhere. Keep looking up and try another mission!";
         $("result-title").focus();
       }
     });
@@ -292,9 +340,10 @@
       current = 0;
       points = 0;
       $("result").hidden = true;
-      $("quiz").hidden = false;
-      renderQuestion();
-      $("question").focus();
+      $("quiz").hidden = true;
+      $("mission-status").hidden = true;
+      $("setup").hidden = false;
+      $("hero-description").firstChild.textContent = "Choose a short or full mission to begin. ";
     });
 
     const themeToggle = $("theme-toggle");
@@ -307,7 +356,6 @@
     }
     setTheme(preferredDark);
     themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
-    renderQuestion();
   </script>
 </body>
 </html>
